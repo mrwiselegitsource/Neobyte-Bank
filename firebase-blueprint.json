@@ -1,0 +1,183 @@
+{
+  "entities": {
+    "PrepaidCard": {
+      "title": "PrepaidCard",
+      "description": "A prepaid Credit Trusts card product representation with optional customized card preview image.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique card product identifier"
+        },
+        "brand": {
+          "type": "string",
+          "enum": ["Mastercard", "Visa", "Amex", "Discover", "Atmos"],
+          "description": "Core routing network branding"
+        },
+        "name": {
+          "type": "string",
+          "description": "Commercial product display name"
+        },
+        "price": {
+          "type": "number",
+          "description": "Prepaid card purchase registration and setup fee"
+        },
+        "originalPrice": {
+          "type": "number",
+          "description": "Muted retail starting cost before discounts"
+        },
+        "limit": {
+          "type": "number",
+          "description": "Calculated or assigned monthly secure spending credit limit threshold"
+        },
+        "cardNumber": {
+          "type": "string",
+          "description": "Authentic tokenized card PAN layout format"
+        },
+        "expiry": {
+          "type": "string",
+          "description": "Future secure cancellation expiry month-year combination"
+        },
+        "cvv": {
+          "type": "string",
+          "description": "Secret card confirmation visual verification digits"
+        },
+        "accountHolder": {
+          "type": "string",
+          "description": "Official authorization state node or member placeholder name"
+        },
+        "address": {
+          "type": "string",
+          "description": "Billing address"
+        },
+        "country": {
+          "type": "string",
+          "description": "Primary region code"
+        },
+        "tags": {
+          "type": "array",
+          "description": "Highlighted descriptors"
+        },
+        "color": {
+          "type": "string",
+          "description": "CSS gradients styles"
+        },
+        "textHighlight": {
+          "type": "string",
+          "description": "Matching highlighting text visual styles"
+        },
+        "description": {
+          "type": "string",
+          "description": "Card product features details text"
+        },
+        "imageURL": {
+          "type": "string",
+          "description": "Custom background image URL for storing credit card visual graphics"
+        }
+      },
+      "required": ["id", "brand", "name", "price", "limit", "cardNumber", "expiry", "cvv", "accountHolder", "address", "country", "tags", "color", "textHighlight", "description"]
+    },
+    "VisitorCounter": {
+      "title": "VisitorCounter",
+      "description": "Platform global views analytics structure to track physical unique page views visits",
+      "type": "object",
+      "properties": {
+        "count": {
+          "type": "number",
+          "description": "Aggregated visitor counts counter value"
+        }
+      },
+      "required": ["count"]
+    },
+    "UserAccount": {
+      "title": "UserAccount",
+      "description": "A user's secure account profile information synchronized with auth status",
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "description": "Authorized email address of user"
+        },
+        "username": {
+          "type": "string",
+          "description": "Unique network profile nickname"
+        },
+        "firstName": {
+          "type": "string",
+          "description": "First name"
+        },
+        "lastName": {
+          "type": "string",
+          "description": "Last name"
+        }
+      },
+      "required": ["email", "username"]
+    },
+    "PurchasedCard": {
+      "title": "PurchasedCard",
+      "description": "A prepaid card purchased and claimed by an authenticated user, saved to the database",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "brand": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "price": {
+          "type": "number"
+        },
+        "limit": {
+          "type": "number"
+        },
+        "cardNumber": {
+          "type": "string"
+        },
+        "expiry": {
+          "type": "string"
+        },
+        "cvv": {
+          "type": "string"
+        },
+        "accountHolder": {
+          "type": "string"
+        },
+        "purchaseDate": {
+          "type": "string"
+        },
+        "isFrozen": {
+          "type": "boolean"
+        },
+        "notes": {
+          "type": "string"
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "Security owner mapping UID"
+        }
+      },
+      "required": ["id", "brand", "name", "price", "limit", "cardNumber", "expiry", "cvv", "accountHolder", "purchaseDate", "isFrozen", "ownerId"]
+    }
+  },
+  "firestore": {
+    "/cards/{cardId}": {
+      "schema": "PrepaidCard",
+      "description": "Contains catalog of prepaid card items virtual stock registry"
+    },
+    "/analytics/{analyticsId}": {
+      "schema": "VisitorCounter",
+      "description": "System counters for global logs traffic tracking visitors"
+    },
+    "/users/{userId}": {
+      "schema": "UserAccount",
+      "description": "Secure user profile mapping data"
+    },
+    "/purchasedCards/{purchaseId}": {
+      "schema": "PurchasedCard",
+      "description": "Durable collection of purchased card modules associated with and secured by unique account owners"
+    }
+  }
+}
