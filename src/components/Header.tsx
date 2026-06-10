@@ -22,8 +22,7 @@ export const Header: React.FC<HeaderProps> = ({
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
 
   const isAdmin = user && user.isLoggedIn && user.email &&
-    user.email.toLowerCase().startsWith('bankadmin') &&
-    user.email.toLowerCase().endsWith('admin.com');
+    user.email.toLowerCase().includes('admin');
 
 
   return (

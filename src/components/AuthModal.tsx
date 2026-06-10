@@ -5,7 +5,7 @@ import { User } from '../types';
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onLoginSuccess: (username: string, email: string, firstName?: string, lastName?: string) => void;
+  onLoginSuccess: (username: string, email: string, firstName?: string, lastName?: string, isNewSignup?: boolean) => void;
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => {
@@ -52,16 +52,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
       return;
     }
 
-    const isEmailAdmin = email.toLowerCase().startsWith('bankadmin') && email.toLowerCase().endsWith('admin.com');
+    const isEmailAdmin = email.toLowerCase().includes('admin');
 
-    // Admin Passcode Enforcer ('1234')
-    if (isEmailAdmin) {
+    // Admin Passcode Enforcer ('1234' on default account, or 4+ characters for others)
+    if (email.toLowerCase() === 'bankadmin@admin.com') {
       if (password !== '1234') {
         setError('Admin access denied. Administrators are protected by passcode verification (must match required security key "1234").');
         return;
       }
-    } else if (password.length < 6) {
-      setError('Password must be at least 6 characters in length.');
+    } else if (password.length < 4) {
+      setError('Password must be at least 4 characters in length.');
       return;
     }
 
@@ -172,7 +172,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
         const updatedUsers = [...registeredUsers, newUser];
         localStorage.setItem('neobyte_registered_users', JSON.stringify(updatedUsers));
 
-        onLoginSuccess(username.trim(), emailLower, fnVal, lnVal);
+        onLoginSuccess(username.trim(), emailLower, fnVal, lnVal, true);
         onClose();
       }
     } catch (err: any) {

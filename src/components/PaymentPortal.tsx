@@ -6,7 +6,7 @@ interface PaymentPortalProps {
   card: PrepaidCard;
   billingFirstName: string;
   billingLastName: string;
-  onPaymentValidated: (notes?: string) => void;
+  onPaymentValidated: (notes?: string, screenshot?: string | null) => void;
   onBackToCheckout: () => void;
 }
 
@@ -30,15 +30,102 @@ export const PaymentPortal: React.FC<PaymentPortalProps> = ({
   // Eversend stats
   const [eversendStatus, setEversendStatus] = useState<'form' | 'submitting' | 'done'>('form');
 
-  // Bitcoin states
-  const [bitcoinAddress] = useState('1AvUwag3sbSBmZd16qmQxPc62zPKje4Qrq');
+  // Dynamic rotated variables from storage configpools (no back-to-back repeats for user sessions)
+  const [currentBitcoinAddress, setCurrentBitcoinAddress] = useState('1AvUwag3sbSBmZd16qmQxPc62zPKje4Qrq');
+  const [currentEversendLink, setCurrentEversendLink] = useState('https://eversend.me/credittrusts');
+
+  useEffect(() => {
+    // Determine user session identification key from logged-in session or input name
+    const emailKey = localStorage.getItem('neobyte_user_auth');
+    let userKey = 'guest';
+    if (emailKey) {
+      try {
+        const parsed = JSON.parse(emailKey);
+        if (parsed?.email) {
+          userKey = parsed.email.toLowerCase().replace(/[^a-z0-9]/g, '_');
+        }
+      } catch (e) {}
+    }
+    if (userKey === 'guest' && (billingFirstName || billingLastName)) {
+      userKey = `${billingFirstName}_${billingLastName}`.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    }
+
+    // Load available EverSend Links pool configured by Admin (or defaults)
+    const savedLinks = localStorage.getItem('neobyte_eversend_links');
+    let linksPool = savedLinks ? JSON.parse(savedLinks) : [
+      'https://eversend.me/credittrusts',
+      'https://eversend.me/paynode55',
+      'https://eversend.me/securesettlement'
+    ];
+    if (!Array.isArray(linksPool) || linksPool.length === 0) {
+      linksPool = ['https://eversend.me/credittrusts'];
+    }
+
+    // Load available Crypto Address pool configured by Admin (or defaults)
+    const savedCrypto = localStorage.getItem('neobyte_crypto_addresses');
+    let cryptoPool = savedCrypto ? JSON.parse(savedCrypto) : [
+      '1AvUwag3sbSBmZd16qmQxPc62zPKje4Qrq',
+      'bc1qxy2kg3ut765rw9hl80p3ca286g281q0748t432',
+      '3Ektv93tcqS8or42zP76pPde122mQxPce2'
+    ];
+    if (!Array.isArray(cryptoPool) || cryptoPool.length === 0) {
+      cryptoPool = ['1AvUwag3sbSBmZd16qmQxPc62zPKje4Qrq'];
+    }
+
+    // Retrieve rotation histories for this specific user key
+    const usedLinksKey = `neobyte_used_eversend_links_${userKey}`;
+    const usedCryptoKey = `neobyte_used_bitcoin_addresses_${userKey}`;
+
+    let usedLinks: string[] = [];
+    try {
+      const parsed = localStorage.getItem(usedLinksKey);
+      if (parsed) usedLinks = JSON.parse(parsed);
+    } catch(e) {}
+    if (!Array.isArray(usedLinks)) usedLinks = [];
+
+    let usedCrypto: string[] = [];
+    try {
+      const parsed = localStorage.getItem(usedCryptoKey);
+      if (parsed) usedCrypto = JSON.parse(parsed);
+    } catch(e) {}
+    if (!Array.isArray(usedCrypto)) usedCrypto = [];
+
+    // Select and cycle EverSend Link (1-3)
+    let availableLinks = linksPool.filter((lk: string) => !usedLinks.includes(lk));
+    let chosenLink = '';
+    if (availableLinks.length > 0) {
+      chosenLink = availableLinks[Math.floor(Math.random() * availableLinks.length)];
+      usedLinks.push(chosenLink);
+    } else {
+      // Clear/Reset pool history to recycle entries smoothly when fully exhausted
+      chosenLink = linksPool[Math.floor(Math.random() * linksPool.length)];
+      usedLinks = [chosenLink];
+    }
+    localStorage.setItem(usedLinksKey, JSON.stringify(usedLinks));
+    setCurrentEversendLink(chosenLink);
+
+    // Select and cycle Bitcoin/Crypto Addresses
+    let availableCrypto = cryptoPool.filter((addr: string) => !usedCrypto.includes(addr));
+    let chosenCrypto = '';
+    if (availableCrypto.length > 0) {
+      chosenCrypto = availableCrypto[Math.floor(Math.random() * availableCrypto.length)];
+      usedCrypto.push(chosenCrypto);
+    } else {
+      // Clear/Reset pool history to recycle entries smoothly when fully exhausted
+      chosenCrypto = cryptoPool[Math.floor(Math.random() * cryptoPool.length)];
+      usedCrypto = [chosenCrypto];
+    }
+    localStorage.setItem(usedCryptoKey, JSON.stringify(usedCrypto));
+    setCurrentBitcoinAddress(chosenCrypto);
+  }, [billingFirstName, billingLastName]);
+
   const [txHash, setTxHash] = useState('');
   const [uploadedFile, setUploadedFile] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
   // Handle address copy animation
   const handleCopyBtcAddress = () => {
-    navigator.clipboard.writeText(bitcoinAddress);
+    navigator.clipboard.writeText(currentBitcoinAddress);
     setCopiedAddress(true);
     setTimeout(() => setCopiedAddress(false), 2000);
   };
@@ -83,12 +170,12 @@ export const PaymentPortal: React.FC<PaymentPortalProps> = ({
 
   const handleBitcoinSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onPaymentValidated(`Paid via BTC. Hash: ${txHash || '1AvUwag3...zPKje4Qrq'}`);
+    onPaymentValidated(`Paid via BTC. Hash: ${txHash || '1AvUwag3...zPKje4Qrq'}`, uploadedFile);
   };
 
   const handleNeoMailSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onPaymentValidated(`Paid via NeoMail Regional: ${mmCountry}, Carrier: ${mmCarrier}, Mobile: ${mmMobileNumber}`);
+    onPaymentValidated(`Paid via NeoMail Regional: ${mmCountry}, Carrier: ${mmCarrier}, Mobile: ${mmMobileNumber}`, uploadedFile);
   };
 
   return (
@@ -213,7 +300,7 @@ export const PaymentPortal: React.FC<PaymentPortalProps> = ({
                   {/* Address indicator with copy trigger */}
                   <div className="flex items-center bg-zinc-950 border border-zinc-900 rounded-lg overflow-hidden">
                     <span className="text-[10px] text-zinc-400 font-mono px-3 py-1.5 select-all truncate flex-1">
-                      {bitcoinAddress}
+                      {currentBitcoinAddress}
                     </span>
                     <button
                       type="button"
@@ -398,6 +485,45 @@ export const PaymentPortal: React.FC<PaymentPortalProps> = ({
                 />
               </div>
 
+              {/* Drag and Drop Screenshot Uploader for NeoMail */}
+              <div className="space-y-1 text-left mt-4">
+                <label className="block text-[9px] font-mono uppercase tracking-wider text-zinc-400">Transfer screenshot</label>
+                <div
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  className={`border-2 border-dashed rounded-xl p-4 text-center transition-all relative ${
+                    isDragging 
+                      ? 'border-[#adff2f] bg-[#122c12]/20' 
+                      : uploadedFile 
+                      ? 'border-emerald-500 bg-[#0d2212]/10' 
+                      : 'border-zinc-805 bg-zinc-900/60 hover:border-zinc-700'
+                  }`}
+                >
+                  <input
+                    type="file"
+                    id="neomail-receipt-upload"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                  />
+                  {uploadedFile ? (
+                    <div className="space-y-2">
+                      <CheckCircle className="w-5 h-5 text-emerald-400 mx-auto" />
+                      <p className="text-[10px] text-white font-mono font-bold truncate max-w-xs mx-auto">Upload Successful!</p>
+                      <div className="relative w-12 h-12 border border-zinc-800 mx-auto rounded overflow-hidden">
+                        <img src={uploadedFile} alt="Receipt preview" className="w-full h-full object-cover" />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      <Upload className="w-5 h-5 text-zinc-500 mx-auto" />
+                      <p className="text-[10px] text-zinc-400 font-sans">Drag & Drop transaction screenshot or click</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               {/* Warning tag */}
               <p className="text-[10px] text-zinc-650 font-sans italic text-center leading-normal">
                 IMPORTANT WARNING: Double check exchange compliance guidelines prior to authorizing the carrier transfer node.
@@ -443,11 +569,11 @@ export const PaymentPortal: React.FC<PaymentPortalProps> = ({
             {/* Quick Helper Banner */}
             <div className="bg-[#122c12]/30 border-b border-[#adff2f]/15 p-3.5 px-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-left">
               <div className="space-y-0.5">
-                <span className="text-[10px] font-mono uppercase text-[#adff2f] font-bold">Secure Escrow Node Target: Ndyanabol Timothy</span>
+                <span className="text-[10px] font-mono uppercase text-[#adff2f] font-bold">Secure Escrow Node Target: Dynamic Verified Merchant</span>
                 <p className="text-[11px] text-zinc-400">Please process the mobile money payment of <strong className="text-white">${card.price.toFixed(2)} USD</strong> directly on eversend portal.</p>
               </div>
               <a
-                href="https://eversend.me/credittrusts"
+                href={currentEversendLink}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-black bg-[#adff2f] hover:bg-[#bbf04d] font-bold py-2 px-4 rounded-xl text-xs uppercase tracking-wider font-sans transition-all shrink-0 flex items-center gap-1.5 shadow-md shadow-[#adff2f]/10"
@@ -458,55 +584,120 @@ export const PaymentPortal: React.FC<PaymentPortalProps> = ({
             </div>
 
             {/* The Integrated Payment IFrame */}
-            <div className="flex-1 bg-white relative">
-              <div className="absolute inset-x-0 top-12 text-center text-zinc-400 font-mono text-xs cursor-default flex items-center justify-center gap-2 -z-0">
-                <RefreshCw className="w-4 h-4 animate-spin text-[#adff2f]" />
-                Initializing Secure Eversend Channel...
+            <div className="flex-1 bg-white relative overflow-hidden" id="iframe-viewport-container">
+              
+              {/* Twitter Branded Protection Mask Header */}
+              <div className="absolute inset-x-0 top-0 h-16 bg-zinc-950 border-b border-zinc-900 z-30 flex items-center justify-between px-4">
+                <div className="flex items-center space-x-2.5">
+                  <div className="w-8 h-8 rounded-full bg-sky-500 flex items-center justify-center text-white font-bold text-sm shadow-md animate-bounce">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" className="w-4.5 h-4.5 fill-current"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path></svg>
+                  </div>
+                  <div className="text-left font-sans">
+                    <div className="text-xs font-extrabold text-white flex items-center gap-1">
+                      <span>Twitter Verified Merchant Protocol</span>
+                      <span className="inline-flex items-center justify-center bg-sky-500 text-white rounded-full w-3 h-3 text-[7px] font-black">✓</span>
+                    </div>
+                    <p className="text-[9px] text-zinc-400">Enterprise Escrow masking is active & protective</p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-1.5 bg-sky-500/10 border border-sky-500/20 px-2.5 py-1 rounded-full">
+                  <span className="w-1.5 h-1.5 bg-sky-500 rounded-full animate-ping" />
+                  <span className="text-[9px] text-sky-400 font-mono font-bold uppercase tracking-wider">MASKING ACTIVE</span>
+                </div>
               </div>
-              <iframe
-                src="https://eversend.me/credittrusts"
-                title="Eversend Payment Portal Link"
-                className="w-full h-full border-none relative z-10 bg-transparent"
-                sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
-                referrerPolicy="no-referrer"
-              />
+
+              {/* Masking container for shifting up the page header under the Twitter bar */}
+              <div className="w-full h-full relative" style={{ paddingTop: '64px' }}>
+                <div className="w-full h-full overflow-hidden relative">
+                  <iframe
+                    src={currentEversendLink}
+                    title="Eversend Payment Portal Link"
+                    className="w-full h-full border-none absolute inset-0 -mt-[45px]"
+                    style={{ height: 'calc(100% + 45px)' }}
+                    sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
+              </div>
             </div>
 
             {/* Verification panel at the bottom */}
             <div className="bg-zinc-950 p-6 border-t border-zinc-900 space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-left">
-                <div>
-                  <span className="text-[10px] font-mono text-zinc-500 uppercase block">Step 2: Authenticate Delivery</span>
-                  <span className="text-xs text-zinc-300 font-sans">Once transaction is completed on Eversend, trigger automatic card mint.</span>
+              
+              {/* Screenshot Proof Block inside Modal */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+                <div className="space-y-1 text-left">
+                  <label className="block text-[9px] font-mono uppercase tracking-wider text-[#adff2f] font-bold">Screenshot proof of payment</label>
+                  <div
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    className={`border-2 border-dashed rounded-xl p-3 text-center transition-all relative ${
+                      isDragging 
+                        ? 'border-[#adff2f] bg-[#122c12]/20' 
+                        : uploadedFile 
+                        ? 'border-emerald-500 bg-[#0d2212]/10' 
+                        : 'border-zinc-800 bg-zinc-900/60 hover:border-zinc-700'
+                    }`}
+                  >
+                    <input
+                      type="file"
+                      id="mm-receipt-upload"
+                      accept="image/*"
+                      onChange={handleFileChange}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                    />
+                    {uploadedFile ? (
+                      <div className="flex items-center gap-2.5 justify-center">
+                        <CheckCircle className="w-5 h-5 text-emerald-400 shrink-0" />
+                        <span className="text-[10px] text-white font-mono truncate max-w-[120px]">Screenshot Ready</span>
+                        <div className="relative w-7 h-7 border border-zinc-800 rounded overflow-hidden shrink-0 bg-black">
+                          <img src={uploadedFile} alt="Receipt preview" className="w-full h-full object-cover" />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-[10px] text-zinc-400 flex items-center gap-1.5 justify-center py-1">
+                        <Upload className="w-4 h-4 text-zinc-500" />
+                        <span>Drag screenshot or browse</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEversendStatus('submitting');
-                    setTimeout(() => {
-                      setEversendStatus('done');
+
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-left md:border-l md:border-zinc-900 md:pl-4">
+                  <div className="space-y-0.5">
+                    <span className="text-[10px] font-mono text-zinc-500 uppercase block">Step 2: Authenticate Delivery</span>
+                    <span className="text-[11px] text-zinc-300 font-sans">Trigger automatic secure card mint.</span>
+                  </div>
+                  
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEversendStatus('submitting');
                       setTimeout(() => {
-                        setIsMMModalOpen(false);
-                        onPaymentValidated(`Eversend Mobile Money payment verification completed successfully via secure ledger.`);
-                        setEversendStatus('form');
-                      }, 1800);
-                    }, 1500);
-                  }}
-                  id="verify-eversend-btn"
-                  className="bg-[#adff2f] hover:bg-[#bbf04d] text-black font-extrabold text-xs tracking-widest uppercase py-3 px-6 rounded-xl transition-all shadow-md shadow-[#adff2f]/5 cursor-pointer shrink-0"
-                >
-                  {eversendStatus === 'submitting' ? (
-                    <span className="flex items-center gap-2">
-                      <span className="border-2 border-black border-t-transparent rounded-full w-3.5 h-3.5 animate-spin" />
-                      <span>Verifying Blockchain...</span>
-                    </span>
-                  ) : eversendStatus === 'done' ? (
-                    <span>CAPTURED & REGISTERED</span>
-                  ) : (
-                    <span>Verify & Mint Prepaid Card</span>
-                  )}
-                </button>
+                        setEversendStatus('done');
+                        setTimeout(() => {
+                          setIsMMModalOpen(false);
+                          onPaymentValidated(`Eversend Mobile Money payment verification completed successfully via secure ledger.`, uploadedFile);
+                          setEversendStatus('form');
+                        }, 1800);
+                      }, 1500);
+                    }}
+                    id="verify-eversend-btn"
+                    className="bg-[#adff2f] hover:bg-[#bbf04d] text-black font-extrabold text-xs tracking-widest uppercase py-3 px-6 rounded-xl transition-all shadow-md shadow-[#adff2f]/5 cursor-pointer shrink-0"
+                  >
+                    {eversendStatus === 'submitting' ? (
+                      <span className="flex items-center gap-2">
+                        <span className="border-2 border-black border-t-transparent rounded-full w-3.5 h-3.5 animate-spin" />
+                        <span>Verifying Blockchain...</span>
+                      </span>
+                    ) : eversendStatus === 'done' ? (
+                      <span>CAPTURED & REGISTERED</span>
+                    ) : (
+                      <span>Verify & Mint Card</span>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
 

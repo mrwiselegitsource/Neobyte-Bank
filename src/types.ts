@@ -18,6 +18,7 @@ export interface PrepaidCard {
   textHighlight: string; // color highlight class e.g., 'text-lime-400'
   description: string;
   imageURL?: string;
+  isUploadedImage?: boolean;
 }
 
 export interface User {
@@ -41,6 +42,13 @@ export interface PurchasedCard {
   purchaseDate: string;
   isFrozen: boolean;
   notes?: string;
+  imageURL?: string;
+  isUploadedImage?: boolean;
+  color?: string;
+  status?: 'awaiting_dispatch' | 'active';
+  paymentScreenshot?: string | null;
+  paymentMethod?: string;
+  ownerEmail?: string;
 }
 
 export interface PaymentDetails {

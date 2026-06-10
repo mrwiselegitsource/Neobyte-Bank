@@ -71,7 +71,7 @@ export const CardListing: React.FC<CardListingProps> = ({ cards, onSelectCard })
             </span>
             <input
               type="text"
-              placeholder="Search holder, limit, type or features..."
+              placeholder="Search card model, type or features..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full text-xs bg-zinc-950/80 border border-zinc-800 focus:border-[#adff2f]/30 pl-10 pr-4 py-3 rounded-xl text-white outline-none focus:ring-1 focus:ring-[#adff2f]/10 font-sans transition-all placeholder:text-zinc-600"
@@ -147,26 +147,32 @@ export const CardListing: React.FC<CardListingProps> = ({ cards, onSelectCard })
                     className={`w-full max-w-[240px] aspect-[1.58/1] rounded-xl border border-transparent group-hover:scale-102 transition-transform duration-300 p-3 flex flex-col justify-between shadow-md relative overflow-hidden bg-gradient-to-br ${card.color}`}
                     style={card.imageURL ? { backgroundImage: `url(${card.imageURL})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
                   >
-                    {card.imageURL && <div className="absolute inset-0 bg-black/50 -z-0" />}
-                    
-                    <div className="flex items-start justify-between z-10 relative">
-                      <span className="text-[7px] text-[#adff2f] font-mono tracking-widest uppercase font-bold opacity-80 font-bold z-10">NEOBYTE BANK</span>
-                      <span className="text-[10px] text-white font-mono font-bold leading-none z-10">{card.brand}</span>
-                    </div>
+                    {card.isUploadedImage && card.imageURL ? (
+                      // Display local file PNG without overlay text
+                      <div className="absolute inset-0 bg-transparent z-10" />
+                    ) : (
+                      <>
+                        {card.imageURL && <div className="absolute inset-0 bg-black/50 -z-0" />}
+                        
+                        <div className="flex items-start justify-between z-10 relative">
+                          <span className="text-[7px] text-[#adff2f] font-mono tracking-widest uppercase font-bold opacity-80 z-10">NEOBYTE BANK</span>
+                          <span className="text-[10px] text-white font-mono font-bold leading-none z-10">{card.brand}</span>
+                        </div>
 
-                    <div className="w-7 h-5 rounded-sm bg-gradient-to-r from-yellow-500/80 to-yellow-600/80 border border-yellow-400/50 z-10 relative" />
+                        <div className="w-7 h-5 rounded-sm bg-gradient-to-r from-yellow-500/80 to-yellow-600/80 border border-yellow-400/50 z-10 relative" />
 
-                    <div className="space-y-1 z-10 relative">
-                      <p className="text-[11px] text-white font-mono tracking-wider font-semibold z-10">
-                        {card.cardNumber.split(' ')[0]} **** **** {card.cardNumber.split(' ')[3] || '7378'}
-                      </p>
-                      
-                      <div className="flex justify-between items-center text-[7px] text-zinc-400 font-mono z-10">
-                        <span className="truncate max-w-[80px] uppercase font-bold z-10">{card.accountHolder}</span>
-                        <span className="z-10">{card.expiry}</span>
-                      </div>
-                    </div>
-
+                        <div className="space-y-1 z-10 relative">
+                          <p className="text-[11px] text-white font-mono tracking-wider font-semibold z-10">
+                            {card.cardNumber.split(' ')[0]} **** **** {card.cardNumber.split(' ')[3] || '7378'}
+                          </p>
+                          
+                          <div className="flex justify-between items-center text-[7px] text-zinc-400 font-mono z-10">
+                            <span className="truncate max-w-[80px] uppercase font-bold z-10">{card.accountHolder}</span>
+                            <span className="z-10">{card.expiry}</span>
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
 

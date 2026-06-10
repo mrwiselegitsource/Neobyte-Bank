@@ -76,30 +76,37 @@ export const CardDetail: React.FC<CardDetailProps> = ({
               className={`w-full aspect-[1.58/1] rounded-2xl border border-[#adff2f]/20 p-5 flex flex-col justify-between shadow-[0_0_30px_rgba(173,255,47,0.08)] relative overflow-hidden bg-gradient-to-br ${card.color}`}
               style={card.imageURL ? { backgroundImage: `url(${card.imageURL})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
             >
-              {card.imageURL && <div className="absolute inset-0 bg-black/55 -z-0" />}
-              
-              <div className="flex items-start justify-between z-10 relative">
-                <div>
-                  <span className="text-[8px] font-mono tracking-widest text-[#adff2f] font-bold block z-10">NEOBYTE BANK</span>
-                  <span className="text-[10px] text-zinc-400 font-sans tracking-tight mt-0.5 uppercase block z-10">PREPAID VIRTUAL</span>
-                </div>
-                <span className="text-sm text-white font-mono font-extrabold z-10">{card.brand}</span>
-              </div>
+              {card.isUploadedImage && card.imageURL ? (
+                // Display custom device uploaded PNG completely "in place of the card"
+                <div className="absolute inset-0 bg-transparent z-10" />
+              ) : (
+                <>
+                  {card.imageURL && <div className="absolute inset-0 bg-black/55 -z-0" />}
+                  
+                  <div className="flex items-start justify-between z-10 relative">
+                    <div>
+                      <span className="text-[8px] font-mono tracking-widest text-[#adff2f] font-bold block z-10">NEOBYTE BANK</span>
+                      <span className="text-[10px] text-zinc-400 font-sans tracking-tight mt-0.5 uppercase block z-10">PREPAID VIRTUAL</span>
+                    </div>
+                    <span className="text-sm text-white font-mono font-extrabold z-10">{card.brand}</span>
+                  </div>
 
-              {/* Chips structure */}
-              <div className="w-10 h-8 rounded bg-gradient-to-r from-yellow-500/90 to-yellow-600/90 border border-yellow-400/40 p-0.5 z-10 relative">
-                <div className="w-full h-full border border-yellow-800/20" />
-              </div>
+                  {/* Chips structure */}
+                  <div className="w-10 h-8 rounded bg-gradient-to-r from-yellow-500/90 to-yellow-600/90 border border-yellow-400/40 p-0.5 z-10 relative">
+                    <div className="w-full h-full border border-yellow-800/20" />
+                  </div>
 
-              <div className="space-y-1 text-left z-10 relative">
-                <p className="text-sm md:text-base text-white font-mono tracking-widest font-bold z-10">
-                  {card.cardNumber.split(' ')[0]} **** **** {card.cardNumber.split(' ')[3] || '7378'}
-                </p>
-                <div className="flex justify-between items-center text-[9px] text-[#adff2f] font-mono z-10">
-                  <span className="truncate max-w-[140px] uppercase tracking-wide font-bold z-10">{customHolder || 'CARD MEMBER'}</span>
-                  <span className="tracking-widest z-10">{card.expiry}</span>
-                </div>
-              </div>
+                  <div className="space-y-1 text-left z-10 relative">
+                    <p className="text-sm md:text-base text-white font-mono tracking-widest font-bold z-10">
+                      {card.cardNumber.split(' ')[0]} **** **** {card.cardNumber.split(' ')[3] || '7378'}
+                    </p>
+                    <div className="flex justify-between items-center text-[9px] text-[#adff2f] font-mono z-10">
+                      <span className="truncate max-w-[140px] uppercase tracking-wide font-bold z-10">{customHolder || 'CARD MEMBER'}</span>
+                      <span className="tracking-widest z-10">{card.expiry}</span>
+                    </div>
+                  </div>
+                </>
+              )}
 
             </div>
 
@@ -111,7 +118,7 @@ export const CardDetail: React.FC<CardDetailProps> = ({
               </div>
 
               {/* Custom Holder Input */}
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 pb-2">
                 <label className="block text-[10px] font-mono uppercase tracking-wider text-zinc-500 text-left">Cardholder Printed Name</label>
                 <input
                   type="text"
@@ -120,27 +127,6 @@ export const CardDetail: React.FC<CardDetailProps> = ({
                   onChange={(e) => setCustomHolder(e.target.value)}
                   className="w-full text-xs bg-zinc-900/60 border border-zinc-800 focus:border-[#adff2f]/30 p-2.5 rounded-xl text-white outline-none focus:ring-1 focus:ring-[#adff2f]/10"
                 />
-              </div>
-
-              {/* Custom Credit Limit Slider */}
-              <div className="space-y-2 pt-2">
-                <div className="flex justify-between text-[10px] font-mono text-zinc-500">
-                  <span className="uppercase">Spending Limit Volume</span>
-                  <span className="text-[#adff2f] font-bold">${customLimit.toLocaleString()} USD</span>
-                </div>
-                <input
-                  type="range"
-                  min="500"
-                  max="12000"
-                  step="100"
-                  value={customLimit}
-                  onChange={(e) => setCustomLimit(parseInt(e.target.value))}
-                  className="w-full h-1.5 bg-zinc-900 rounded-lg appearance-none cursor-pointer accent-[#adff2f]"
-                />
-                <div className="flex justify-between text-[8px] font-mono text-zinc-600">
-                  <span>MIN: $500</span>
-                  <span>MAX: $12k</span>
-                </div>
               </div>
 
             </div>
@@ -188,7 +174,7 @@ export const CardDetail: React.FC<CardDetailProps> = ({
               </div>
               <div className="grid grid-cols-2 border-b border-zinc-900 py-2.5 px-4">
                 <span className="text-zinc-500 font-semibold text-left">6. Monthly Limit</span>
-                <span className="text-white font-mono text-right font-bold">${customLimit.toLocaleString()}/Month</span>
+                <span className="text-white font-mono text-right font-bold">${card.limit.toLocaleString()}/Month</span>
               </div>
               <div className="grid grid-cols-2 border-b border-zinc-900 py-2.5 px-4 bg-zinc-950/40">
                 <span className="text-zinc-500 font-semibold text-left">7. Assigned Address</span>

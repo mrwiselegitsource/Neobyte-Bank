@@ -57,6 +57,10 @@ export default function App() {
   const [viewState, setViewState] = useState<'catalog' | 'detail' | 'checkout' | 'payment_portal'>('catalog');
   const [selectedCard, setSelectedCard] = useState<PrepaidCard | null>(null);
 
+  // States for dynamic system notifications
+  const [successToast, setSuccessToast] = useState<{ message: string; description?: string } | null>(null);
+  const [verificationNotice, setVerificationNotice] = useState<{ isOpen: boolean; email: string; cardName: string } | null>(null);
+
   // Checkout inputs
   const [billingFirstName, setBillingFirstName] = useState('');
   const [billingLastName, setBillingLastName] = useState('');
@@ -182,10 +186,27 @@ export default function App() {
     setVisitorCount(currentCount);
   }, []);
 
-  const handleLoginSuccess = (username: string, email: string, firstName?: string, lastName?: string) => {
+  const handleLoginSuccess = (username: string, email: string, firstName?: string, lastName?: string, isNewSignup?: boolean) => {
     const freshUser: User = { username, email, firstName, lastName, isLoggedIn: true };
     setUser(freshUser);
     localStorage.setItem('neobyte_user_auth', JSON.stringify(freshUser));
+    
+    if (isNewSignup) {
+      setSuccessToast({
+        message: "SYSTEM RECORD: REGISTRATION SUCCESSFUL",
+        description: `Welcome! Your cyber credentials ${username} (${email}) are registered. You can now select standard or custom prepaid card profiles.`
+      });
+    } else {
+      setSuccessToast({
+        message: "SECURE ACCOUNT NODE ONLINE",
+        description: `Authenticated node: Welcome back IP profile client ${username}.`
+      });
+    }
+    
+    // Automatically fade toast after 5 seconds
+    setTimeout(() => {
+      setSuccessToast(null);
+    }, 6000);
   };
 
   const handleLogout = () => {
@@ -208,13 +229,12 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handlePaymentValidated = (notes?: string) => {
+  const handlePaymentValidated = (notes?: string, screenshot?: string | null) => {
     if (!selectedCard) return;
 
-    // Generate simulated dynamic CVV and card numbers
-    const randomCVV = Math.floor(100 + Math.random() * 900).toString();
-    
-    const newPurchase: PurchasedCard & { ownerEmail?: string } = {
+    const billingEmail = user.isLoggedIn && user.email ? user.email : 'your billing inbox address';
+
+    const newPurchase: PurchasedCard = {
       id: `purchased-${Date.now()}`,
       brand: selectedCard.brand,
       name: selectedCard.name,
@@ -222,23 +242,33 @@ export default function App() {
       limit: selectedCard.limit,
       cardNumber: selectedCard.cardNumber,
       expiry: selectedCard.expiry,
-      cvv: randomCVV,
+      cvv: '***',
       accountHolder: `${billingFirstName} ${billingLastName}`.toUpperCase(),
       purchaseDate: new Date().toISOString().split('T')[0],
       isFrozen: false,
       notes: notes || `Created: Customized spent threshold set to $${selectedCard.limit}`,
-      ownerEmail: user.isLoggedIn ? user.email : 'guest'
+      ownerEmail: user.isLoggedIn ? user.email : 'guest',
+      imageURL: selectedCard.imageURL,
+      isUploadedImage: selectedCard.isUploadedImage,
+      color: selectedCard.color,
+      status: 'awaiting_dispatch',
+      paymentScreenshot: screenshot || null,
+      paymentMethod: notes || 'Direct Gateway Node'
     };
 
     const updated = [newPurchase, ...allPurchasedCards];
     setAllPurchasedCards(updated);
     localStorage.setItem('neobyte_purchasedCards', JSON.stringify(updated));
 
-    // Redirect to wallet cabinet
-    setViewState('catalog');
+    // Open Checkout Verification modal notifying client of the 5-10 min email delivery
+    setVerificationNotice({
+      isOpen: true,
+      email: billingEmail,
+      cardName: selectedCard.name
+    });
+
+    // Reset card state as processed
     setSelectedCard(null);
-    setActiveTab('dashboard');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleFreezeToggle = (id: string) => {
@@ -280,9 +310,7 @@ export default function App() {
     }, 2500);
   };
 
-  const isAdmin = user.isLoggedIn &&
-    user.email.toLowerCase().startsWith('bankadmin') &&
-    user.email.toLowerCase().endsWith('admin.com');
+  const isAdmin = user.isLoggedIn && user.email.toLowerCase().includes('admin');
 
   return (
     <div className="min-h-screen bg-black text-zinc-100 flex flex-col justify-between">
@@ -353,7 +381,6 @@ export default function App() {
         ) : activeTab === 'dashboard' ? (
           <UserDashboard
             purchasedCards={purchasedCards}
-            onFreezeToggle={handleFreezeToggle}
             onUpdateLimit={handleUpdateLimit}
             onUpdateNotes={handleUpdateNotes}
             onDeleteCard={handleDeleteCard}
@@ -375,6 +402,17 @@ export default function App() {
               setCards(updated);
               localStorage.setItem('neobyte_cards', JSON.stringify(updated));
             }}
+            onUpdateCard={(updatedCard) => {
+              const updated = cards.map(c => c.id === updatedCard.id ? updatedCard : c);
+              setCards(updated);
+              localStorage.setItem('neobyte_cards', JSON.stringify(updated));
+            }}
+            purchasedCards={allPurchasedCards}
+            onUpdatePurchasedCard={(updatedCard) => {
+              const updated = allPurchasedCards.map(c => c.id === updatedCard.id ? updatedCard : c);
+              setAllPurchasedCards(updated);
+              localStorage.setItem('neobyte_purchasedCards', JSON.stringify(updated));
+            }}
           />
         ) : (
           <div className="py-20 text-center text-zinc-500 font-mono text-xs">
@@ -394,6 +432,74 @@ export default function App() {
           onClose={() => setIsAuthModalOpen(false)}
           onLoginSuccess={handleLoginSuccess}
         />
+      )}
+
+      {/* Success Toast Notification */}
+      {successToast && (
+        <div className="fixed bottom-6 right-6 z-55 max-w-sm w-full bg-[#0a110a] border border-[#adff2f]/30 rounded-2xl p-4 shadow-[0_4px_30px_rgba(173,255,47,0.15)] flex items-start space-x-3.5 animate-in slide-in-from-bottom duration-300">
+          <div className="p-2 bg-[#122812] border border-[#adff2f]/20 rounded-xl text-[#adff2f]">
+            <CheckCircle className="w-5 h-5 text-[#adff2f]" />
+          </div>
+          <div className="flex-1 text-left">
+            <h4 className="text-white text-xs font-sans font-bold uppercase tracking-wider">{successToast.message}</h4>
+            <p className="text-[11px] text-zinc-400 font-sans mt-0.5 leading-relaxed">{successToast.description}</p>
+          </div>
+          <button onClick={() => setSuccessToast(null)} className="text-zinc-500 hover:text-white shrink-0">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Checkout Success 5-10 Minutes Verification Notice */}
+      {verificationNotice?.isOpen && (
+        <div className="fixed inset-0 z-55 flex items-center justify-center p-4 bg-black/95 backdrop-blur-md animate-in fade-in duration-200" id="checkout-notification-portal">
+          <div className="relative w-full max-w-md bg-[#090F09] border border-[#adff2f]/30 rounded-2xl p-6 md:p-8 text-center text-white shadow-[0_0_50px_rgba(173,255,47,0.15)] flex flex-col items-center animate-in zoom-in-95 duration-200">
+            
+            {/* Pulsing Checking Graphic */}
+            <div className="relative p-5 bg-[#122c12] border-2 border-[#adff2f] rounded-full mb-6 shadow-lg shadow-[#adff2f]/10">
+              <CheckCircle className="w-12 h-12 text-[#adff2f] animate-pulse" />
+              <span className="absolute inset-0 border-2 border-[#adff2f]/20 rounded-full animate-ping pointer-events-none" />
+            </div>
+
+            <h2 className="text-xl sm:text-2xl font-sans font-extrabold text-white uppercase tracking-tight mb-2">
+              VERIFICATION UNDERWAY!
+            </h2>
+            
+            <p className="text-[#adff2f] font-mono text-[10px] uppercase font-bold tracking-widest bg-[#122c12]/20 border border-[#adff2f]/10 px-3 py-1 rounded-full mb-6">
+              Escrow Security Active
+            </p>
+
+            <div className="space-y-4 text-xs font-sans text-zinc-300 leading-relaxed max-w-sm mb-8">
+              <p>
+                Perfect! Your customized prepaid card design <strong className="text-white">"{verificationNotice.cardName}"</strong> has been successfully requested.
+              </p>
+              <div className="bg-zinc-950 p-4 border border-zinc-900 rounded-xl text-left border-l-4 border-l-[#adff2f]">
+                <p className="text-white font-bold leading-normal mb-1">⏰ Estimated Verification Pool:</p>
+                <p className="text-zinc-400">
+                  Your secure proxy card credentials and design preview will be sent to you after verification, usually <strong className="text-lime-300">between 5 to 10 minutes</strong>.
+                </p>
+              </div>
+              <p className="text-[11px] text-zinc-500 italic">
+                It will be dispatched directly to your registered address: <span className="text-zinc-400 font-mono italic">{verificationNotice.email}</span>.
+              </p>
+            </div>
+
+            {/* Acknowledge button to restore standard catalog routing */}
+            <button
+              onClick={() => {
+                setVerificationNotice(null);
+                setViewState('catalog');
+                setActiveTab('dashboard');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              id="close-verification-notice"
+              className="w-full py-4 bg-[#adff2f] hover:bg-[#bbf04d] text-black font-sans font-extrabold text-xs tracking-widest uppercase rounded-xl transition-all shadow-md shadow-[#adff2f]/5 cursor-pointer"
+            >
+              Understand & Open Active Wallet
+            </button>
+            
+          </div>
+        </div>
       )}
 
       {/* Compliance Information Modals overlays fallback */}
